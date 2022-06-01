@@ -39,10 +39,12 @@ ui <- navbarPage("EndokarditisPal",
                             tabPanel("Telefonnumern", 
                                      fluidPage(
                                           helpText(
-                                            HTML("Dr. Herzlich                         0800-123456789<br/>
-                                                Krankenhaus der Barmherzigen Tanten       0123-4556789<br/>
-                                                Hausärztlicher Notdienst                  116 117<br/>
-                                                Notruf / Rettungsdienst                   112")
+                                            HTML("<table>
+                                                <tr><td>Dr. Herzlich</td><td>                         0800-123456789</td>
+                                                <tr><td>Krankenhaus der Barmherzigen Tanten&nbsp;&nbsp;&nbsp;</td><td>       0123-4556789</td>
+                                                <tr><td>Hausärztlicher Notdienst</td><td>                  116 117</td>
+                                                <tr><td>Notruf / Rettungsdienst</td><td>                   112</td>
+                                                </table>")
                                           )   
                             )),
                             tabPanel("Arztbrief")
