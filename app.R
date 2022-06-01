@@ -28,6 +28,18 @@ ui <- navbarPage("EndokarditisPal",
                             ), selected = 0, width = 500)
                           ))),
                  
+                 tabPanel("Vorgeschichte",
+                          checkboxGroupInput("Erkrankungen", "", choices = list(
+                            "Congenital heart disease" = 1,
+                            "Left heart endocarditis" = 2,
+                            "Right heart endocarditis" = 3,
+                            "Pacemaker endocarditis" = 4,
+                            "Intracardiac device" = 5,
+                            "Native valve endocarditis" = 6,
+                            "Prosthetic valve endocarditis" = 7
+                          ), selected = 0, width = 500)
+                 ),
+                 
                  # tabPanel zeigt Tage/Zeitstrahl mit auffälligen Symptomen, ggf. Fieberkurve, dokumentiert Medikamenteneinnahme
                  tabPanel("Zusammenfassung"),
                  
