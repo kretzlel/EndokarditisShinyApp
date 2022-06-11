@@ -28,35 +28,31 @@ ui <- navbarPage("EndokarditisPal",
                             ), selected = 0, width = 500)
                           ))),
                  
-                 tabPanel("Vorgeschichte",
-                          checkboxGroupInput("Erkrankungen", "", choices = list(
-                            "Congenital heart disease" = 1,
-                            "Left heart endocarditis" = 2,
-                            "Right heart endocarditis" = 3,
-                            "Pacemaker endocarditis" = 4,
-                            "Intracardiac device" = 5,
-                            "Native valve endocarditis" = 6,
-                            "Prosthetic valve endocarditis" = 7
-                          ), selected = 0, width = 500)
-                 ),
-                 
                  # tabPanel zeigt Tage/Zeitstrahl mit auffälligen Symptomen, ggf. Fieberkurve, dokumentiert Medikamenteneinnahme
                  tabPanel("Zusammenfassung"),
                  
                  # initiale Einstellungen wie Benutzungszeitraum, Telefonnummern, Medikamenteneinnahme, Import-Möglichkeit für Arztbrief
-                 tabPanel("Einstellungen"),
+                 tabPanel("Arztangaben", fluidPage(
+                      textInput("patVorname", "Vorname Patient"),
+                      textInput("patNachname", "Nachname Patient"),
+                      radioButtons("geschlecht", "Geschlecht", choices = list("männlich"=1,"weiblich"=2)),
+                      helpText("Body Surface Area (BSA) in qm"),
+                      textOutput("bsa"),
+                      numericInput("groesse", "Körpergröße in cm", 170, min=100, max=220),
+                      numericInput("gewicht", "Körpergewicht in kg", 80, min=30, max=200),
+                      textAreaInput("diagnosen", "Diagnosen", width='80%', height=200, placeholder="Bitte relevante Nebendiagnosen aufführen")
+                    
+                 )),
                  
                  # Miscellaneous
                  navbarMenu("Misc", 
                             tabPanel("Telefonnumern", 
                                      fluidPage(
                                           helpText(
-                                            HTML("<table>
-                                                <tr><td>Dr. Herzlich</td><td>                         0800-123456789</td>
-                                                <tr><td>Krankenhaus der Barmherzigen Tanten&nbsp;&nbsp;&nbsp;</td><td>       0123-4556789</td>
-                                                <tr><td>Hausärztlicher Notdienst</td><td>                  116 117</td>
-                                                <tr><td>Notruf / Rettungsdienst</td><td>                   112</td>
-                                                </table>")
+                                            HTML("Dr. Herzlich                         0800-123456789<br/>
+                                                Krankenhaus der Barmherzigen Tanten       0123-4556789<br/>
+                                                Hausärztlicher Notdienst                  116 117<br/>
+                                                Notruf / Rettungsdienst                   112")
                                           )   
                             )),
                             tabPanel("Arztbrief")
@@ -66,7 +62,7 @@ ui <- navbarPage("EndokarditisPal",
 
 # Define Server Logic ----
 server <- function(input, output) {
-  
+  output$bsa <- renderText({0.007184 * input$groesse^0.725 * input$gewicht^0.425}) # DuBois
 }
 
 shinyApp(ui, server)
