@@ -38,7 +38,7 @@ addUser <- function(username, password, admin, healthcareProvider, linkedPatient
 authenticateUser <- function(username, password) {
   user <<- NULL
   db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, port = options()$mysql$port, user = options()$mysql$user, password=options()$mysql$password)
-  query <- sprintf("SELECT * FROM %s WHERE username='%s'", table, username)
+  query <- sprintf("SELECT * FROM %s WHERE username='%s'", table, username) # da "username" primary key ist, kann maximal 1 Benutzer zurückgegeben werden
   user <<- dbGetQuery(db, query)
   dbDisconnect(db)
   if (nrow(user) > 0) {
