@@ -65,7 +65,14 @@ myUI <- navbarPage(
                  ),
                  conditionalPanel(
                    condition = "input.temp > 38.5",
-                   h2("Kontaktieren Sie bitte Ihren Arzt"),
+                   conditionalPanel(
+                     condition = "input.temp > 44",
+                     h2("Bitte messen Sie noch einmal, dieser Wert ist sehr unwahrscheinlich", style = "color:yellow"),
+                   ),
+                   conditionalPanel(
+                     condition = "input.temp <= 44",
+                     h2("Kontaktieren Sie bitte Ihren Arzt", style = "color:red")
+                   )
                  ),
                ),
                checkboxGroupInput(
