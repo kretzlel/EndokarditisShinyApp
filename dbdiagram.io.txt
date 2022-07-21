@@ -1,0 +1,35 @@
+Table users as U {
+  id int [pk, increment]
+  usename char(256)
+  pw_hashed char(256)
+  healthcare_provider boolean
+}
+
+Table patients as P {
+  id int [pk, increment]
+  name varchar
+  male_sex boolean
+  healthcare_provider boolean
+  user_id int
+}
+
+Table symptoms {
+  code int [pk]
+  name varchar
+ }
+
+Table diary_entries {
+  id int [pk, increment]
+  patient_id int
+  entry_date datetime
+ }
+
+Table recorded_symptom as R {
+  diary_entry_id int
+  symptom_code int
+ }
+
+Ref: users.id - P.id
+Ref: patients.id < diary_entries.patient_id
+Ref: R.diary_entry_id > diary_entries.id
+Ref: R.symptom_code > symptoms.code
