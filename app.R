@@ -13,13 +13,16 @@ source("sql.R")
 source("myUI.R")
 #source("test.R")
 
+library(RMySQL)
+
 ui <- myUI
 ui <- secure_app(ui, language="de")
 
-
+# Define Server Logic ----
 server <- function(input, output, session) {
+  output$bsa <- renderText({0.007184 * input$groesse^0.725 * input$gewicht^0.425}) # DuBois
   
-    res_auth <- secure_server(
+  res_auth <- secure_server(
       check_credentials = function(username, password) {
         if (authenticateUser(username, password)) {
           list(result = TRUE, user_info = list(user=user$username, something=user$linkedPatient))
@@ -28,17 +31,36 @@ server <- function(input, output, session) {
         }
       }
     )
-  
-    output$bsa <- renderText({0.007184 * input$groesse^0.725 * input$gewicht^0.425}) # DuBois
+
+  output$bsa <- renderText({0.007184 * input$groesse^0.725 * input$gewicht^0.425}) # DuBois
+
+  observeEvent(input$submit, {
+    databaseName <- "EndocarditisApp"
+    table <- "Symptoms"
     
-    observeEvent(input$submit, {
-      showModal(modalDialog(
-        title = "Data saved.",
-        paste0("Your data should be saved now."),
-        easyClose = TRUE,
-        footer = NULL
-      )) })
+    db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, 
+                    port = options()$mysql$port, user = options()$mysql$user, 
+                    password = options()$mysql$password)
     
+    data <- c(1, format(input$Datum, "'%Y-%m-%d'"), input$fieber == 1, sum(1*(input$symptome == 1)) == 1, sum(1*(input$symptome == 3)) == 1)
+    names(data) <- c("PatientId", "Date", "Fever", "Headache", "Malaise")
+    
+    query <- sprintf(
+      "INSERT INTO %s (%s) VALUES (%s)",
+      table, 
+      paste(names(data), collapse = ", "),
+      paste(data, collapse = ", ")
+    )
+    # Submit the update query and disconnect
+    dbGetQuery(db, query)
+    dbDisconnect(db)
+    showModal(modalDialog(
+      title = "Data saved.",
+      paste0("Your data should be saved now."),
+      easyClose = TRUE,
+      footer = NULL
+    ))
+  })
     #output$patient <- renderText({ user$linkedPatient })
     #output$hp <- renderText({user$healthcareProvider})
 
