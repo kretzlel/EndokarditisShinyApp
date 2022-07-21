@@ -55,8 +55,8 @@ server <- function(input, output, session) {
     dbGetQuery(db, query)
     dbDisconnect(db)
     showModal(modalDialog(
-      title = "Data saved.",
-      paste0("Your data should be saved now."),
+      title = "Ihre Daten sind gespeichert.",
+      paste0("Ihre Daten sind jetzt gespeichert"),
       easyClose = TRUE,
       footer = NULL
     ))
