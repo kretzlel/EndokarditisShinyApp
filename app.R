@@ -17,7 +17,7 @@ library(RMySQL)
 
 ui <- myUI
 ui <- secure_app(ui, language="de")
-diaryEntry <- NULL
+#entry <- NULL
 
 # Define Server Logic ----
 server <- function(input, output, session) {
@@ -45,13 +45,22 @@ server <- function(input, output, session) {
     
     data <- c(user$linkedPatient, format(input$Datum, "'%Y-%m-%d'"), input$fieber == 1, sum(1*(input$symptome == 1)) == 1, sum(1*(input$symptome == 3)) == 1)
     names(data) <- c("PatientId", "Date", "Fever", "Headache", "Malaise")
-    
-    query <- sprintf(
-      "INSERT INTO %s (%s) VALUES (%s)",
-      table, 
-      paste(names(data), collapse = ", "),
-      paste(data, collapse = ", ")
-    )
+    query <- sprintf("SELECT * FROM %s WHERE PatientId='%s' AND Date=%s", table, user$linkedPatient, format(input$Datum, "'%Y-%m-%d'")) 
+    entry <<- dbGetQuery(db, query)
+    if (nrow(entry)==0) {
+      query <- sprintf(
+        "INSERT INTO %s (%s) VALUES (%s)",
+        table, 
+        paste(names(data), collapse = ", "),
+        paste(data, collapse = ", ")
+      )
+    } else {
+      query <- sprintf(
+        "UPDATE %s SET `Fever`='%s',`Headache`='%s',`Malaise`='%s' WHERE `entryID`=%s",
+        table, input$fieber, sum(1*(input$symptome == 1)), sum(1*(input$symptome == 3)), entry$entryID
+      )
+    }
+    # cat(file=stdout(),query,"\n")
     # Submit the update query and disconnect
     dbGetQuery(db, query)
     dbDisconnect(db)
@@ -101,6 +110,7 @@ server <- function(input, output, session) {
       retrieveDiaryEntry(user$linkedPatient, input$Datum)
       if (is.null(entry)) {
         entry <- frame(
+          entryID = -1,
           Date = input$Datum,
           Fever = 0,
           Headache = 0,
