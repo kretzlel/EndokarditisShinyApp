@@ -147,7 +147,11 @@ server <- function(input, output, session) {
           "Nachtschweiß" = 4,
           "Muskel- oder Gelenkschmerzen" = 5
         ),
-        selected = 0
+        #selected = 0
+        selected = if (nrow(entry)==0) 0 else c(
+          if(entry$Headache==1) 1 else 0, 
+          if(entry$Malaise==1) 2 else 0
+        ) 
       ),
       
       #conditionalPanel wird nur angezeigt, wenn Medikamente hinterlegt sind
@@ -174,7 +178,10 @@ server <- function(input, output, session) {
         )
       }
     )
+
     
 }
 
 shinyApp(ui = ui, server = server)
+
+
