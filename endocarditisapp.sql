@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:8889
--- Generation Time: Jul 24, 2022 at 12:58 PM
+-- Generation Time: Jul 24, 2022 at 01:22 PM
 -- Server version: 5.7.34
 -- PHP Version: 7.4.21
 
@@ -57,6 +57,17 @@ CREATE TABLE `Symptoms` (
   `Malaise` tinyint(1) NOT NULL,
   `LastEdited` date NOT NULL DEFAULT '2022-07-24'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Dumping data for table `Symptoms`
+--
+
+INSERT INTO `Symptoms` (`entryID`, `PatientId`, `Date`, `Fever`, `Headache`, `Malaise`, `LastEdited`) VALUES
+(1, 1, '2022-07-24', 0, 1, 1, '2022-07-24'),
+(2, 1, '2022-07-20', 1, 1, 0, '2022-07-24'),
+(3, 1, '2022-07-21', 0, 1, 0, '2022-07-24'),
+(4, 2, '2022-07-24', 0, 0, 0, '2022-07-24'),
+(5, 2, '2022-07-23', 0, 1, 0, '2022-07-24');
 
 -- --------------------------------------------------------
 
@@ -116,6 +127,12 @@ ALTER TABLE `users`
 --
 ALTER TABLE `Patients`
   MODIFY `Id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `Symptoms`
+--
+ALTER TABLE `Symptoms`
+  MODIFY `entryID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

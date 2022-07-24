@@ -43,7 +43,7 @@ server <- function(input, output, session) {
                     port = options()$mysql$port, user = options()$mysql$user, 
                     password = options()$mysql$password)
     
-    data <- c(1, format(input$Datum, "'%Y-%m-%d'"), input$fieber == 1, sum(1*(input$symptome == 1)) == 1, sum(1*(input$symptome == 3)) == 1)
+    data <- c(user$linkedPatient, format(input$Datum, "'%Y-%m-%d'"), input$fieber == 1, sum(1*(input$symptome == 1)) == 1, sum(1*(input$symptome == 3)) == 1)
     names(data) <- c("PatientId", "Date", "Fever", "Headache", "Malaise")
     
     query <- sprintf(
@@ -150,7 +150,7 @@ server <- function(input, output, session) {
         #selected = 0
         selected = if (nrow(entry)==0) 0 else c(
           if(entry$Headache==1) 1 else 0, 
-          if(entry$Malaise==1) 2 else 0
+          if(entry$Malaise==1) 3 else 0
         ) 
       ),
       

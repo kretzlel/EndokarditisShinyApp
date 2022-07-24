@@ -90,12 +90,12 @@ retrieveDiaryEntry <- function(patientID, entryDate) {
   entry <<- dbGetQuery(db, query)
   dbDisconnect(db)
   if (nrow(entry) == 0) {
-    cat(file=stdout(), "retrieveDiaryEntry: Kein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " gefunden.\n")
+    # cat(file=stdout(), "retrieveDiaryEntry: Kein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " gefunden.\n")
     return (NULL)
   } else if (nrow(entry) > 1) {
     stop("Datenbank-Integrität beeinträchtigt. Es befindet sich mehr als ein Eintrag in der Datenbank zu diesem Patienten und diesem Datum. Bitte kontaktieren Sie xxxxxxx")  
   } else {
-    cat(file=stdout(), "retrieveDiaryEntry: Ein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " wurde gefunden.\n")
+    # cat(file=stdout(), "retrieveDiaryEntry: Ein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " wurde gefunden.\n")
     return (entry)
   }
 }
