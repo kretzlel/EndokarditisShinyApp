@@ -66,7 +66,10 @@ server <- function(input, output, session) {
     dbDisconnect(db)
     showModal(modalDialog(
       title = "Ihre Daten sind gespeichert.",
-      paste0("Ihre Daten sind jetzt gespeichert"),
+      if (input$temp > 38.5) 
+        h2("Sie haben Fieber. Kontaktieren Sie bitte Ihren Arzt!", style = "color:red")
+      else
+        paste0("Ihre Daten sind jetzt gespeichert. "),
       easyClose = TRUE,
       footer = NULL
     ))
@@ -136,15 +139,8 @@ server <- function(input, output, session) {
           step = 0.1
         ),
         conditionalPanel(
-          condition = "input.temp > 38.5",
-          conditionalPanel(
-            condition = "input.temp > 44",
-            h2("Bitte messen Sie noch einmal, dieser Wert ist sehr unwahrscheinlich", style = "color:yellow"),
-          ),
-          conditionalPanel(
-            condition = "input.temp <= 44",
-            h2("Kontaktieren Sie bitte Ihren Arzt", style = "color:red")
-          )
+          condition = "input.temp > 44",
+          h2("Bitte messen Sie noch einmal, dieser Wert ist sehr unwahrscheinlich", style = "color:yellow"),
         ),
       ),
       checkboxGroupInput(
