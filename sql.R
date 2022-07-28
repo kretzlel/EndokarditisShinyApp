@@ -19,7 +19,7 @@ options(mysql = list(
 ## Beispiel-Datenbank
 ## kardiostar kardiostar
 ## Mitra Clip
-databaseName <- "shinyUsers"
+databaseName <- "endocarditisapp"
 table <- "users"
 
 user = NULL
@@ -36,6 +36,7 @@ addUser <- function(username, password, admin, healthcareProvider, linkedPatient
 # Funktion authenticateUser(username, password) authentifiziert Benutzer, gibt das Ergebnis als TRUE/FALSE zurück und
 # lädt den Benutzer mit seinen Privilegien in die Globale Variable "user"
 authenticateUser <- function(username, password) {
+  table <- "users"
   user <<- NULL
   db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, port = options()$mysql$port, user = options()$mysql$user, password=options()$mysql$password)
   query <- sprintf("SELECT * FROM %s WHERE username='%s'", table, username) # da "username" primary key ist, kann maximal 1 Benutzer zurückgegeben werden
@@ -57,4 +58,46 @@ authenticateUser <- function(username, password) {
     })
   }
 }
+
+getPatientName <- function(PatientID) {
+    table <- "Patients"
+    
+    db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, 
+                    port = options()$mysql$port, user = options()$mysql$user, 
+                    password = options()$mysql$password)
+    
+    query <- sprintf("SELECT * FROM %s WHERE Id='%s'", table, PatientID) 
+    patient <<- dbGetQuery(db, query)
+    dbDisconnect(db)
+    
+    if (nrow(patient)==0) {
+     return (NULL) 
+    } else {
+     return(paste(patient$FirstName,patient$LastName))
+    }
+}
+
+retrieveDiaryEntry <- function(patientID, entryDate) {
+  table <- "Symptoms"
+  db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, 
+                  port = options()$mysql$port, user = options()$mysql$user, 
+                  password = options()$mysql$password)
+  if (is.null(entryDate)) {
+    stop("entryDate ist NULL")
+    entryDate = "2222-22-22"
+  }
+  query <- sprintf("SELECT * FROM %s WHERE PatientId='%s' AND Date=%s", table, patientID, format(entryDate, "'%Y-%m-%d'")) 
+  entry <<- dbGetQuery(db, query)
+  dbDisconnect(db)
+  if (nrow(entry) == 0) {
+    # cat(file=stdout(), "retrieveDiaryEntry: Kein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " gefunden.\n")
+    return (NULL)
+  } else if (nrow(entry) > 1) {
+    stop("Datenbank-Integrität beeinträchtigt. Es befindet sich mehr als ein Eintrag in der Datenbank zu diesem Patienten und diesem Datum. Bitte kontaktieren Sie xxxxxxx")  
+  } else {
+    # cat(file=stdout(), "retrieveDiaryEntry: Ein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " wurde gefunden.\n")
+    return (entry)
+  }
+}
+
 
