@@ -8,44 +8,50 @@
 #
 
 library(shiny)
+library(DT)
+library(plyr)
 library(shinymanager)
 source("sql.R")
 source("myUI.R")
-#source("test.R")
-
 library(RMySQL)
 
 ui <- myUI
 ui <- secure_app(ui, language="de")
-#entry <- NULL
+DEBUG_SQL <<- FALSE
+verify_fa = FALSE
+patient <<- NULL
 
-# Define Server Logic ----
 server <- function(input, output, session) {
-  output$bsa <- renderText({0.007184 * input$groesse^0.725 * input$gewicht^0.425}) # DuBois
+  
+  sqlSysDate <- function() { format(Sys.Date(),"'%Y-%m-%d'") }
   
   res_auth <- secure_server(
       check_credentials = function(username, password) {
         if (authenticateUser(username, password)) {
-          list(result = TRUE, user_info = list(user=user$username, something=user$linkedPatient))
+          list(result = TRUE, user_info = list(user=benutzer$benutzername, something=benutzer$patienten_id))
         } else {
           list(result = FALSE)
         }
       }
     )
 
-  output$bsa <- renderText({0.007184 * input$groesse^0.725 * input$gewicht^0.425}) # DuBois
-
   observeEvent(input$submit, {
     databaseName <- "endocarditisapp"
-    table <- "Symptoms"
+    table <- "tagebuch_eintraege"
     
     db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, 
                     port = options()$mysql$port, user = options()$mysql$user, 
                     password = options()$mysql$password)
     
-    data <- c(user$linkedPatient, format(input$Datum, "'%Y-%m-%d'"), input$fieber == 1, sum(1*(input$symptome == 1)) == 1, sum(1*(input$symptome == 3)) == 1)
-    names(data) <- c("PatientId", "Date", "Fever", "Headache", "Malaise")
-    query <- sprintf("SELECT * FROM %s WHERE PatientId='%s' AND Date=%s", table, user$linkedPatient, format(input$Datum, "'%Y-%m-%d'")) 
+    data <- c(benutzer$patienten_id, format(input$Datum, "'%Y-%m-%d'"), sum(1*(input$fieber==1)), input$temp, sum(1*(input$symptome == 1)), sum(1*(input$symptome == 2)), sum(1*(input$symptome == 3)), sum(1*(input$symptome == 4)),sum(1*(input$symptome == 5)),sqlSysDate())
+    names(data) <- c("patienten_id", "datum", "fieber", "fieber_temperatur", "kopfschmerzen", "abgeschlagenheit", "appetitlosigkeit", "nachtschweiss", "muskel_gelenkschmerzen", "zuletzt_geaendert")
+    if ((is.na(data["fieber_temperatur"])) || (input$fieber == 0)) {
+      data["fieber_temperatur"] = "NULL"
+    }
+        query <- sprintf("SELECT * FROM %s WHERE patienten_id='%s' AND datum=%s", table, benutzer$patienten_id, format(input$Datum, "'%Y-%m-%d'")) 
+    if (DEBUG_SQL) {
+      cat(file=stdout(),query,"\n")
+    }
     entry <<- dbGetQuery(db, query)
     if (nrow(entry)==0) {
       query <- sprintf(
@@ -56,35 +62,79 @@ server <- function(input, output, session) {
       )
     } else {
       query <- sprintf(
-        "UPDATE %s SET `Fever`='%s',`Headache`='%s',`Malaise`='%s' WHERE `entryID`=%s",
-        table, input$fieber, sum(1*(input$symptome == 1)), sum(1*(input$symptome == 3)), entry$entryID
+        "UPDATE %s SET `fieber`='%s',`fieber_temperatur`=%s,`kopfschmerzen`='%s',`abgeschlagenheit`='%s',`appetitlosigkeit`='%s',`nachtschweiss`='%s',`muskel_gelenkschmerzen`='%s', `zuletzt_geaendert`=%s WHERE `id`=%s",
+        table, 
+        input$fieber,  
+        data["fieber_temperatur"], 
+        sum(1*(input$symptome == 1)), 
+        sum(1*(input$symptome == 2)), 
+        sum(1*(input$symptome == 3)), 
+        sum(1*(input$symptome == 4)),
+        sum(1*(input$symptome == 5)), 
+        sqlSysDate(),
+        entry$id
       )
     }
-    # cat(file=stdout(),query,"\n")
-    # Submit the update query and disconnect
+    if (DEBUG_SQL) {
+      cat(file=stdout(),query,"\n")
+    }
     dbGetQuery(db, query)
     dbDisconnect(db)
-    showModal(modalDialog(
-      title = "Ihre Daten sind gespeichert.",
-      if (input$temp > 38.5) 
-        h2("Sie haben Fieber. Kontaktieren Sie bitte Ihren Arzt!", style = "color:red")
-      else
-        paste0("Ihre Daten sind jetzt gespeichert. "),
-      easyClose = TRUE,
-      footer = NULL
-    ))
+    
+    if ((input$fieber == TRUE) || (length(input$symptome) > 0)) {
+      showModal(
+        modalDialog(
+          strong("Sie haben oder hatten Fieber oder auffällige Symptome.", style = "color:red"),
+          br(), br(),
+          strong("Falls noch nicht geschehen, kontaktieren Sie bitte Ihren Arzt"),
+          br(), br(),
+          "Sie erreichen Ihren Arzt unter:",
+          verbatimTextOutput("formatierteKontaktdaten"),
+          title = "Die Daten wurden gespeichert.",
+          easyClose = TRUE
+        )
+      )
+    } else {
+      showModal(
+        modalDialog(
+          p("Falls Sie sich anderweitig unwohl fühlen sollten oder Fragen haben, kontaktieren Sie gegebenenfalls Ihren Arzt"), 
+          title="Die Daten wurden gespeichert", 
+          easyClose = TRUE
+        )
+      )
+    }
+    
   })
   
-  output$welcomeMessage <- renderText ({
-    if (user$healthcareProvider == 0) {
-      sprintf("Herzlich Willkommen, %s.", getPatientName(user$linkedPatient))
-    } else {
-      sprintf("Herzlich Willkommen. Ihr Patient: %s", getPatientName(user$linkedPatient))
-    }  
-    })
+  output$welcomeMessage <- renderUI({
+    tagList(if (benutzer$ist_arzt == 0) {
+      tagList(h3(paste(
+        "Herzlich Willkommen, ",
+        getPatientName(benutzer$patienten_id)
+      )),
+        br(), br()
+      )
+    } else if (benutzer$ist_arzt == 1) {
+      tagList(
+        h3("Herzlich Willkommen."),
+        strong("Ihr Patient:"), br(),
+        getPatientName(benutzer$patienten_id), br(), br()
+      )
+    },
+    "Herzlichen Dank für die Nutzung der Endokarditis App. ", br(), br(),
+    em(appVerfuegbarkeit()
+       )
+  )
+})
+    
+    # Hier kann für den Patienten der Gebrauchszeitraum und die Datenschutzvereinbarung eingefügt werden.
+
+  
   
     output$appTitle <- renderText({
-      patName = getPatientName(user$linkedPatient)
+      return ("EndokarditisApp")
+      
+      patName = getPatientName(benutzer$patienten_id)
       if (is.null(patName)) {
         return ("EndokarditisApp")
       } else {
@@ -93,32 +143,47 @@ server <- function(input, output, session) {
     })
     
     output$tagebuchGespeichert <- renderText({
-      diaryEntry <- retrieveDiaryEntry(user$linkedPatient, input$Datum)
+      diaryEntry <- retrieveDiaryEntry(benutzer$patienten_id, input$Datum)
       if (is.null(diaryEntry)) {
         return ("Für dieses Datum wurde noch kein Eintrag gespeichert")
       } else {
-        sprintf("Dieser Eintrag wurde zuletzt am %s bearbeitet.", as.Date(diaryEntry$LastEdited, "%Y-%m-%d"))  
+        sprintf("Dieser Eintrag wurde zuletzt am %s bearbeitet.", myDate(diaryEntry$zuletzt_geaendert))  
       }
     })
     
     
-    # observeEvent(input$Datum, {
-    #   cat(file=stdout(),"observeEvent(input$Datum) wurde ausgelöst.")  
-    #   if (input$Datum > Sys.Date()) {
-    #     input.Datum = Sys.Date()
-    #   } 
-    # })
+    output$datumsBereich <- renderUI({
+      retrievePatient(benutzer$patienten_id)
+      maxDate = Sys.Date();
+      if (maxDate > patient$ende) {
+        maxDate = patient$ende
+      }
+      dateInput(
+        "Datum",
+        label = "Datum",
+        format = "dd.mm.yyyy",
+        language = "de",
+        weekstart = 1,
+        min = patient$beginn,
+        max = maxDate,
+        value = maxDate
+      )
+    })
     
     output$tagebuchEintrag <- renderUI({
-      retrieveDiaryEntry(user$linkedPatient, input$Datum)
+      retrieveDiaryEntry(benutzer$patienten_id, input$Datum)
       if (is.null(entry)) {
         entry <- frame(
-          entryID = -1,
-          Date = input$Datum,
-          Fever = 0,
-          Headache = 0,
-          Malaise = 0,
-          LastEdited = SysDate()
+          id = -1,
+          datum = input$Datum,
+          fieber = 0,
+          fieber_temperatur = NULL,
+          kopfschmerzen = 0,
+          abgeschlagenheit = 0,
+          appetitlosigkeit = 0,
+          nachtschweiss = 0,
+          muskel_gelenkschmerzen = 0,
+          zuletzt_geaendert = SysDate()
         )
       }
       list(
@@ -126,22 +191,28 @@ server <- function(input, output, session) {
         "fieber",
         "Fieber",
         choices = list("Ich habe kein Fieber" = 0, "Ich habe Fieber" = 1),
-        selected = entry$Fever
+        selected = entry$fieber
       ),
       conditionalPanel(
         condition = "input.fieber == 1",
         numericInput(
           "temp",
           "gemessene Körpertemperatur",
-          37.0,
+          entry$fieber_temperatur,
           min = 35.0,
           max = 42.0,
           step = 0.1
         ),
         conditionalPanel(
           condition = "input.temp > 44",
-          h2("Bitte messen Sie noch einmal, dieser Wert ist sehr unwahrscheinlich", style = "color:yellow"),
+          strong("Bitte messen Sie noch einmal, dieser Wert ist sehr unwahrscheinlich. Möglicherweise liegt ein Defekt Ihres Thermometers vor.", style = "color:orange"),
+          br(), br()
         ),
+        conditionalPanel( 
+          condition = "input.temp < 34",
+          strong("Bitte messen Sie noch einmal, dieser Wert ist sehr unwahrscheinlich. Möglicherweise liegt ein Defekt Ihres Thermometers vor.", style = "color:orange"),
+          br(), br()
+        )
       ),
       checkboxGroupInput(
         "symptome",
@@ -153,39 +224,126 @@ server <- function(input, output, session) {
           "Nachtschweiß" = 4,
           "Muskel- oder Gelenkschmerzen" = 5
         ),
-        #selected = 0
         selected = if (nrow(entry)==0) 0 else c(
-          if(entry$Headache==1) 1 else 0, 
-          if(entry$Malaise==1) 3 else 0
+          if(entry$kopfschmerzen==1) 1 else 0, 
+          if(entry$abgeschlagenheit==1) 2 else 0,
+          if(entry$appetitlosigkeit==1) 3 else 0,
+          if(entry$nachtschweiss==1) 4 else 0,
+          if(entry$muskel_gelenkschmerzen==1) 5 else 0
         ) 
       ),
       
-      #conditionalPanel wird nur angezeigt, wenn Medikamente hinterlegt sind
-      checkboxGroupInput(
-        "medis",
-        "Gestern eingenommene Medikamente",
-        choices = list(
-          "Rifampicin 600 mg (z.B. EREMFAT) 1 Tablette um 8:00" = 1,
-          "Rifampicin 600 mg (z.B. EREMFAT) 1 Tablette um 20:00" = 2
-        ),
-        selected = 0,
-        width = 500
-      ),
-      actionButton("submit","submit", icon("save")),
-      verbatimTextOutput("value")
+      actionButton("submit","Eintrag speichern", icon("save")), br(), br(),
+      #verbatimTextOutput("value")
+      appVerfuegbarkeit()
     )})
-  
-    output$VorerkrankungenEingabeUI <- renderUI(
-      if (user$healthcareProvider == 1) {
-        hpUI
-      } else {
-        tagList(
-          helpText("Hier dürfen nur Ärzte Eintragungen machen.")
-        )
-      }
-    )
-
     
+  output$arztangaben <- renderUI({
+    tagList(
+    strong("Vorname Patient"), br(),
+    patient$vorname, br(), br(),
+    strong("Nachname Patient"), br(),
+    patient$nachname, br(), br(),
+    strong("Geschlecht"), br(),
+    if (patient$geschlecht == 1) {
+      "männlich"
+    } else if (patient$geschlecht == 2) {
+      "weiblich"
+    } else {
+      "divers / keine Angabe"
+    }, br(), br(),
+    if (benutzer$ist_arzt == 1) { 
+      tagList(
+        textAreaInput("diagnosen", "Diagnosen / Vorgeschichte", width='80%', height=200, value = patient$vorgeschichte, placeholder="Bitte Verlauf / relevante Diagnosen aufführen."),
+        textAreaInput("kontaktdaten", "Diese Kontaktdaten werden Ihrem Patienten angezeigt", width='80%', height=100, value = patient$arztkontakt, placeholder="Bitte tragen Sie hier ein, wie der Patient Sie oder einen betreuenden Arzt erreichen kann.")
+      )
+    } else {
+      tagList(
+        strong("Diagnosen / Vorgeschichte"), br(),
+        verbatimTextOutput("formatierteVorgeschichte"), br(), br()
+      )
+    },
+    em(appVerfuegbarkeit()), br(), br(),
+    if (benutzer$ist_arzt == 1) {
+      actionButton("arztangabenSpeichern","Änderungen speichern", icon("save"))
+    } 
+  )})
+
+  output$formatierteVorgeschichte <- renderText(patient$vorgeschichte)
+  output$formatierteKontaktdaten <- renderText(patient$arztkontakt)
+  
+  output$arztkontakt <- renderUI({
+    tagList(
+      strong("So erreichen Sie Ihren Arzt:"), br(),
+      verbatimTextOutput("formatierteKontaktdaten"), br(), br()
+    )
+  })
+  
+  myDate <- function(datum) {
+    format(as.Date(datum), "%d.%m.%Y")
+  }
+  
+  appVerfuegbarkeit <- function() {
+    paste("Die Tagebuchfunktion steht zur Verfügung für die Daten vom ", myDate(patient$beginn), "bis zum ", myDate(patient$ende),". Ab dem ", format(as.Date(patient$ende)+90, "%d.%m.%Y"), "werden sämtliche Patienten-bezogenen Daten sowie Ihre Benutzerkennung gelöscht.")
+  }
+  
+  output$alleEintraege <- renderDT({
+    zusammenfassung <<- alleEintraegeEinlesen(benutzer$patienten_id)
+    invalidateLater(30000)
+    datatable(zusammenfassung,
+                options = list(order = list(1,'desc'),
+                               "searching" = FALSE,
+                               "columnDefs" = list(list("targets" = 0, "visible" = FALSE)))
+    )
+  })
+
+  
+  observeEvent(input$arztangabenSpeichern, {
+    databaseName <- "endocarditisapp"
+    table <- "patienten"
+    
+    db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, 
+                    port = options()$mysql$port, user = options()$mysql$user, 
+                    password = options()$mysql$password)
+    
+    data <- c(patient$vorname, patient$nachname, patient$geschlecht, patient$vorgeschichte, patient$arztkontakt, patient$id)
+    names(data) <- c("vorname", "nachname", "geschlecht", "vorgeschichte", "arztkontakt", "id")
+
+ 
+    query <- sprintf(
+        "UPDATE %s SET `vorgeschichte`='%s', `arztkontakt`='%s' WHERE `id`=%s",
+        table, 
+        input$diagnosen,
+        input$kontaktdaten,
+        patient$id
+      )
+    if (DEBUG_SQL) {
+      cat(file=stdout(),query,"\n")
+    }
+    dbGetQuery(db, query)
+    dbDisconnect(db)
+    
+    showModal(modalDialog(
+      title = "Die Änderungen wurden gespeichert.",
+      easyClose = TRUE,
+      footer = NULL
+    ))
+  })
+    
+  observe({
+    if (!is.null(benutzer)) { 
+     if (benutzer$ist_arzt) {
+        hideTab(inputId = "tabs", target="Tagebuch")  
+        showTab(inputId = "tabs", target="Verlauf")
+        hideTab(inputId = "tabs", target="Arztkontakt")
+     } else {
+        showTab(inputId = "tabs", target="Tagebuch")
+        hideTab(inputId = "tabs", target="Verlauf")
+        showTab(inputId = "tabs", target="Arztkontakt")
+     }
+    }
+  })
+  
 }
 
 shinyApp(ui = ui, server = server)
