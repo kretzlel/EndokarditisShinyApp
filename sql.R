@@ -1,52 +1,44 @@
 # Funktionen zur Authentifizierung und Privilegienabfrage für die SinyEndokarditis-App
 
+# Automatically close database connection: 
+# https://community.rstudio.com/t/disconnect-from-mysql-when-user-exits/21882
+
+
+
 library (RMySQL)
 library (bcrypt)
 
-# Die Userdatenbank muss sich in einer MySQL-Datenbank (Standard: "shinyusers") mit den unter options() engestellten Parametern befinden
-# In der Datenbank muss sich eine Tabelle (Standard "users") mit den folgenden Feldern befinden:
-# username            varchar primary required        Der Benutzername in Klartext
-# password            varchar required                Das Password als BCrypt-Hash 
-# admin               boolean/tinyint(1)              Admin-Privilegien ja/nein
-# healthcareProvider  boolean/tinyint(1)              Arzt-Privilegien ja/nein
-# linkedPatient       int required                    Verbundene Patienten-ID
 options(mysql = list(
   "host" = "127.0.0.1",
   "port" = 8889,
   "user" = "endokarditis",
-  "password" = "karsuc-poncav-warbU2"
+  "password" = "karsuc-poncav-warbU2" # TODO: Verschlüsselung mittels White-Box-Cryptography
 ))
-## Beispiel-Datenbank
-## kardiostar kardiostar
-## Mitra Clip
-databaseName <- "endocarditisapp"
-table <- "users"
+dbName <- "endocarditisapp"
 
-user = NULL
+# Funktion addUser(benutzername, passwort, admin, ist_arzt, patienten_id) fügt einen neuen benutzer zur Datenbank hinzu
+# addUser <- function(benutzername, passwort, admin, ist_arzt, patienten_id) {
+#   passwort_hash <- hashpw(passwort, salt=gensalt())
+#   db <- dbConnect(MySQL(), dbname = dbName, host = options()$mysql$host, port = options()$mysql$port, user = options()$mysql$benutzer, password=options()$mysql$password)
+#   query <- sprintf("INSERT INTO `%s` (`benutzername`, `passwort_hash`, `admin`, `ist_arzt`, `patienten_id`) VALUES ('%s', '%s', '%i', '%i', '%i');", tabelle, benutzername, passwort_hash, admin, ist_arzt, patienten_id)
+#   dbGetQuery(db, query)
+#   dbDisconnect(db)
+# }
 
-# Funktion addHashedUser(username, password, admin, healthcareProvider, linkedPatient) fügt einen neuen User zur Datenbank hinzu
-addUser <- function(username, password, admin, healthcareProvider, linkedPatient) {
-  hashedPassword <- hashpw(password, salt=gensalt())
-  db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, port = options()$mysql$port, user = options()$mysql$user, password=options()$mysql$password)
-  query <- sprintf("INSERT INTO `%s` (`username`, `password`, `admin`, `healthcareProvider`, `linkedPatient`) VALUES ('%s', '%s', '%i', '%i', '%i');", table, username, hashedPassword, admin, healthcareProvider, linkedPatient)
-  dbGetQuery(db, query)
+# Funktion authenticateUser(benutzername, passwort) authentifiziert Benutzer, gibt das Ergebnis als TRUE/FALSE zurück und
+# lädt den Benutzer mit seinen Privilegien in die Globale Variable "benutzer"
+authenticateUser <- function(benutzername, passwort) {
+  tabelle <- "benutzer"
+  benutzer <<- NULL
+  db <- dbConnect(MySQL(), dbname = dbName, host = options()$mysql$host, port = options()$mysql$port, user = options()$mysql$user, password=options()$mysql$password)
+  query <- sprintf("SELECT * FROM %s WHERE benutzername='%s'", tabelle, benutzername) # da "benutzername" primary key ist, kann maximal 1 Benutzer zurückgegeben werden
+  benutzer <<- dbGetQuery(db, query)
   dbDisconnect(db)
-}
-
-# Funktion authenticateUser(username, password) authentifiziert Benutzer, gibt das Ergebnis als TRUE/FALSE zurück und
-# lädt den Benutzer mit seinen Privilegien in die Globale Variable "user"
-authenticateUser <- function(username, password) {
-  table <- "users"
-  user <<- NULL
-  db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, port = options()$mysql$port, user = options()$mysql$user, password=options()$mysql$password)
-  query <- sprintf("SELECT * FROM %s WHERE username='%s'", table, username) # da "username" primary key ist, kann maximal 1 Benutzer zurückgegeben werden
-  user <<- dbGetQuery(db, query)
-  dbDisconnect(db)
-  if (nrow(user) > 0) {
+  if (nrow(benutzer) > 0) {
     tryCatch({
-      check = checkpw(password, user$password)
+      check = checkpw(passwort, benutzer$passwort_hash)
       if (!check) {
-        user <<- NULL
+        benutzer <<- NULL
         return(FALSE)
       } else {
         return(TRUE)
@@ -54,50 +46,120 @@ authenticateUser <- function(username, password) {
     }, error = function(e) {
       return(FALSE)
     }, finally = {
-      user$password <<- NULL
+      benutzer$passwort_hash <<- NULL
     })
   }
 }
 
-getPatientName <- function(PatientID) {
-    table <- "Patients"
+getPatientName <- function(patientID) {
+    tabelle <- "patienten"
     
-    db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, 
+    db <- dbConnect(MySQL(), dbname = dbName, host = options()$mysql$host, 
                     port = options()$mysql$port, user = options()$mysql$user, 
                     password = options()$mysql$password)
     
-    query <- sprintf("SELECT * FROM %s WHERE Id='%s'", table, PatientID) 
+    query <- sprintf("SELECT * FROM %s WHERE id='%s'", tabelle, patientID) 
     patient <<- dbGetQuery(db, query)
     dbDisconnect(db)
     
     if (nrow(patient)==0) {
      return (NULL) 
     } else {
-     return(paste(patient$FirstName,patient$LastName))
+     anrede = switch (patient$geschlecht,
+       "1" = "Herr",
+       "2" = "Frau",
+       "3" = ""
+     )
+     return(paste(anrede,patient$vorname,patient$nachname))
     }
 }
 
-retrieveDiaryEntry <- function(patientID, entryDate) {
-  table <- "Symptoms"
-  db <- dbConnect(MySQL(), dbname = databaseName, host = options()$mysql$host, 
+retrievePatient <- function(patientID) {
+  tabelle <- "patienten"
+  
+  db <- dbConnect(MySQL(), dbname = dbName, host = options()$mysql$host, 
                   port = options()$mysql$port, user = options()$mysql$user, 
                   password = options()$mysql$password)
-  if (is.null(entryDate)) {
-    stop("entryDate ist NULL")
-    entryDate = "2222-22-22"
+  
+  query <- sprintf("SELECT * FROM %s WHERE id='%s'", tabelle, patientID) 
+  patient <<- dbGetQuery(db, query)
+  dbDisconnect(db)
+}
+
+retrieveDiaryEntry <- function(patientId, datum) {
+  if (is.null(datum)) {
+    return
   }
-  query <- sprintf("SELECT * FROM %s WHERE PatientId='%s' AND Date=%s", table, patientID, format(entryDate, "'%Y-%m-%d'")) 
-  entry <<- dbGetQuery(db, query)
+  tabelle <- "tagebuch_eintraege"
+  db <- dbConnect(MySQL(), dbname = dbName, host = options()$mysql$host, 
+                  port = options()$mysql$port, user = options()$mysql$user, 
+                  password = options()$mysql$password)
+  query <- sprintf("SELECT * FROM %s WHERE patienten_id='%s' AND datum=%s", tabelle, patientId, format(datum, "'%Y-%m-%d'")) 
+  if (DEBUG_SQL) {
+    cat(file=stdout(),query,"\n")
+  }
+  suppressWarnings({entry <<- dbGetQuery(db, query)})
   dbDisconnect(db)
   if (nrow(entry) == 0) {
-    # cat(file=stdout(), "retrieveDiaryEntry: Kein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " gefunden.\n")
-    return (NULL)
+   return (NULL)
   } else if (nrow(entry) > 1) {
     stop("Datenbank-Integrität beeinträchtigt. Es befindet sich mehr als ein Eintrag in der Datenbank zu diesem Patienten und diesem Datum. Bitte kontaktieren Sie xxxxxxx")  
   } else {
-    # cat(file=stdout(), "retrieveDiaryEntry: Ein Eintrag für Patient", patientID, " am Datum ", format(entryDate, "'%Y-%m-%d'"), " wurde gefunden.\n")
     return (entry)
   }
 }
+  
+alleEintraegeEinlesen <- function(patientId) {
+  tabelle <- "tagebuch_eintraege"
+  db <- dbConnect(MySQL(), dbname = dbName, host = options()$mysql$host, 
+                  port = options()$mysql$port, user = options()$mysql$user, 
+                  password = options()$mysql$password)
+  query <- sprintf("SELECT * FROM %s WHERE patienten_id='%s'", tabelle, patientId) 
+  if (DEBUG_SQL) {
+    cat(file=stdout(),query,"\n")
+  }
+  suppressWarnings({entries <<- dbGetQuery(db, query)})
+  dbDisconnect(db)
+  zeilen = nrow(entries)
+  spaltenNamen <- c("Datum", "Zuletzt geändert", "Fieber", "Temperatur", "Symptome")
+  umformatierung <- data.frame(Datum=character(zeilen), Fieber=character(zeilen), Temperatur=numeric(zeilen), Symptome=character(zeilen),Geaendert=character(zeilen))
+  colnames(umformatierung) = spaltenNamen
+  if (zeilen == 0) {
+    return (umformatierung)
+  }
+  umformatierung$Datum = entries["datum"]
+  umformatierung["Zuletzt geändert"] = entries["zuletzt_geaendert"]
+  # Fieber Ja/Nein
+  umformatierung$Fieber <- mapvalues(entries$fieber,c(0,1),c("Nein","JA"))
+  # Fieberhoehe
+  umformatierung$Temperatur <- entries$fieber_temperatur
+  # Symptome als String-Liste
+  for (row in 1:zeilen) {
+    syAcc = c(character(0))
+    if (entries$kopfschmerzen[row]==1) {
+      syAcc = c(syAcc, "Kopfschmerzen")
+    }
+    if (entries$abgeschlagenheit[row]==1) {
+      syAcc = c(syAcc, "Abgeschlagenheit")
+    }
+    if (entries$appetitlosigkeit[row]==1) {
+      syAcc = c(syAcc, "Appetitlosigkeit")
+    }
+    if (entries$nachtschweiss[row]==1) {
+      syAcc = c(syAcc, "Nachtschweiss")
+    }
+    if (entries$muskel_gelenkschmerzen[row]==1) {
+      syAcc = c(syAcc, "Muskel-/Gelenkschmerzen")
+    }
+    if (length(syAcc) == 0) {
+      syText = "keine"
+    } else {
+      syText = toString(syAcc)
+    }
+    umformatierung$Symptome[row] = syText
+  }
+  return (umformatierung)
+}
+
 
 
