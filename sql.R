@@ -1,4 +1,3 @@
-# Funktionen zur Authentifizierung und Privilegienabfrage für die SinyEndokarditis-App
 
 # Automatically close database connection: 
 # https://community.rstudio.com/t/disconnect-from-mysql-when-user-exits/21882
@@ -15,15 +14,6 @@ options(mysql = list(
   "password" = "karsuc-poncav-warbU2" # TODO: Verschlüsselung mittels White-Box-Cryptography
 ))
 dbName <- "endocarditisapp"
-
-# Funktion addUser(benutzername, passwort, admin, ist_arzt, patienten_id) fügt einen neuen benutzer zur Datenbank hinzu
-# addUser <- function(benutzername, passwort, admin, ist_arzt, patienten_id) {
-#   passwort_hash <- hashpw(passwort, salt=gensalt())
-#   db <- dbConnect(MySQL(), dbname = dbName, host = options()$mysql$host, port = options()$mysql$port, user = options()$mysql$benutzer, password=options()$mysql$password)
-#   query <- sprintf("INSERT INTO `%s` (`benutzername`, `passwort_hash`, `admin`, `ist_arzt`, `patienten_id`) VALUES ('%s', '%s', '%i', '%i', '%i');", tabelle, benutzername, passwort_hash, admin, ist_arzt, patienten_id)
-#   dbGetQuery(db, query)
-#   dbDisconnect(db)
-# }
 
 # Funktion authenticateUser(benutzername, passwort) authentifiziert Benutzer, gibt das Ergebnis als TRUE/FALSE zurück und
 # lädt den Benutzer mit seinen Privilegien in die Globale Variable "benutzer"
@@ -95,9 +85,7 @@ retrieveDiaryEntry <- function(patientId, datum) {
                   port = options()$mysql$port, user = options()$mysql$user, 
                   password = options()$mysql$password)
   query <- sprintf("SELECT * FROM %s WHERE patienten_id='%s' AND datum=%s", tabelle, patientId, format(datum, "'%Y-%m-%d'")) 
-  if (DEBUG_SQL) {
-    cat(file=stdout(),query,"\n")
-  }
+
   suppressWarnings({entry <<- dbGetQuery(db, query)})
   dbDisconnect(db)
   if (nrow(entry) == 0) {
@@ -115,9 +103,7 @@ alleEintraegeEinlesen <- function(patientId) {
                   port = options()$mysql$port, user = options()$mysql$user, 
                   password = options()$mysql$password)
   query <- sprintf("SELECT * FROM %s WHERE patienten_id='%s'", tabelle, patientId) 
-  if (DEBUG_SQL) {
-    cat(file=stdout(),query,"\n")
-  }
+
   suppressWarnings({entries <<- dbGetQuery(db, query)})
   dbDisconnect(db)
   zeilen = nrow(entries)

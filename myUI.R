@@ -1,6 +1,6 @@
-# Define UI ----
+
 myUI <- navbarPage(
-  textOutput("appTitle"), id = "tabs",
+  "EndokarditisApp", id = "tabs",
   windowTitle = "EndokarditisApp",
   
   tabPanel("Start",
