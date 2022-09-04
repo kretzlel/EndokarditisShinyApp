@@ -1,3 +1,5 @@
+## UI-Elemente
+## Copyright (C) 2022 Timm M. Kandaouroff
 
 myUI <- navbarPage(
   "EndokarditisApp", id = "tabs",
@@ -6,7 +8,6 @@ myUI <- navbarPage(
   tabPanel("Start",
     fluidPage(
       uiOutput("welcomeMessage")
-      # textOutput("welcomeMessage", container = tags$h3)
     )       
   ),
   
