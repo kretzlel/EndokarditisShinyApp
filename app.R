@@ -9,16 +9,58 @@ library(DT)
 library(plyr)
 library(shinymanager)
 source("sql.R")
-source("myUI.R")
 library(RMySQL)
 
-ui <- myUI
-ui <-
-  secure_app(ui, language = "de") # In der Produktivversion Unterstützung anderer Sprachen
 
 # Vorab-Initialisierung der "leeren" Globalvariablen
 patient <<- NULL
 benutzer <<- NULL
+
+
+ui <- navbarPage(
+  "EndokarditisApp", id = "tabs",
+  windowTitle = "EndokarditisApp",
+  
+  tabPanel("Start",
+           fluidPage(
+             uiOutput("welcomeMessage")
+           )       
+  ),
+  
+  tabPanel("Tagebuch",
+           sidebarLayout(
+             sidebarPanel(
+               uiOutput("datumsBereich"),
+               textOutput("tagebuchGespeichert", container = tags$small),
+             ),
+             mainPanel(
+               NULL,
+               uiOutput("tagebuchEintrag")
+             )
+           )
+  ),
+  
+  tabPanel("Verlauf",
+           fluidPage(
+             DTOutput("alleEintraege"),
+             br(),
+             helpText("Änderungen in den Tagebucheinträgen werden erst nach maximal 30 Sekunden sichtbar!"),
+           )
+  ),
+  
+  tabPanel("Arztangaben", fluidPage(
+    uiOutput("arztangaben")
+  )),
+  
+  tabPanel("Arztkontakt", fluidPage(
+    uiOutput("arztkontakt")
+  )),
+  
+)
+
+
+ui <- secure_app(ui, language = "de") 
+# In der Produktivversion Unterstützung anderer Sprachen
 
 ## Helfer-Funktionen
 
@@ -94,14 +136,22 @@ server <- function(input, output, session) {
           strong("Ihr Patient:"),
           br(),
           getPatientNameWithSalutation(),
-          br(),
-          br()
         )
-      },
+      }, br(), br(),
       "Herzlichen Dank für die Nutzung der Endokarditis App.",
       br(),
       br(),
-      em(appVerfuegbarkeit())
+      p("Diese App ermöglicht es Patienten, die sich in häuslicher Weiterbehandlung nach einer Endokarditis befinden, 
+        körperliches Wohlbefinden oder Symptome täglich zu dokumentieren. Der weiterbehandelnde Arzt kann diese Einträge
+        jederzeit einsehen. Dies erleichtert die Arzt-Patienten-Kommunikation und kann die gemeinsame Absprache bezüglich
+        erforderlicher Schritte erleichtern."),
+      p("Datensicherheit liegt uns sehr am Herzen. Wir verweisen auf die ausführliche Datenschutzerklärung zu unserer App.
+        Als Nutzer haben Sie jederzeit ein Anrecht auf"),
+      p("- ausschließliche Erfassung von Daten, die für die Funktionalität der App unabdingbar sind."),
+      p("- die Möglichkeit des Widerruf Ihrer Einwilligung in unsere Datenschutzerklärung. Ihre Daten werden dann unwiderruflich gelöscht. (Art. 17 DSGVO) "),
+      p("- die Übertragung Ihrer Daten in Form einer verschlüsselten JSON- oder CSV-Datei (Art. 20 DSGVO)."),
+      em(appVerfuegbarkeit()), br(), br(),
+      p("Ihre Daten sind jederzeit nur für Sie und Ihren Arzt einsehbar und werden mit keinem Dritten geteilt.")
     )
   })
   
@@ -300,7 +350,8 @@ server <- function(input, output, session) {
                 "searching" = FALSE,
                 "columnDefs" = list(list(
                   "targets" = 0, "visible" = FALSE
-                ))
+                )),
+                language = list(url = "//cdn.datatables.net/plug-ins/1.10.11/i18n/German.json")
               ))
   })
   
@@ -340,6 +391,8 @@ server <- function(input, output, session) {
       )
       return()
     }
+    
+    output$formatierteKontaktdaten <- renderText(patient$arztkontakt)
     
     # Aufruf Datenbank-Funktion 
     saveDiaryEntry(input$Datum, input$fieber, input$temp, input$symptome)

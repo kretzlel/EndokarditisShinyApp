@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:8889
--- Generation Time: Sep 01, 2022 at 10:47 PM
+-- Generation Time: Sep 05, 2022 at 10:29 AM
 -- Server version: 5.7.34
 -- PHP Version: 7.4.21
 
@@ -46,7 +46,8 @@ INSERT INTO `benutzer` (`benutzername`, `passwort_hash`, `admin`, `ist_arzt`, `p
 ('arzt3', '$2a$12$Is2xTvRvbKU9wln1hK.8meYCgvXTpdxkziDBOnwSVgxmB8wo8GmoG', 0, 1, 3),
 ('pat1', '$2a$12$6xvracpVQKXUyFPc4dTHzOVoKNYRvhYpmcn0nqa3LvfMk1Wfrn7sm', 0, 0, 1),
 ('pat2', '$2a$12$HNDJFU3/Z8cEe/eE/08KzuR/15wDg1oc2HSGtHr9XrxVdOsm3BG1C', 0, 0, 2),
-('pat3', '$2a$12$hfggXhBRZAr.OmyhFy3KW.Ml6ZSrJwikv0zpq.v04/3buZiVLp4xq', 0, 0, 3);
+('pat3', '$2a$12$hfggXhBRZAr.OmyhFy3KW.Ml6ZSrJwikv0zpq.v04/3buZiVLp4xq', 0, 0, 3),
+('pat4', '$2a$12$spb.Zw2su/2FqrqNBzfZ.enG3yjGesxCfmFIqWteJKKaGuxRHATJu', 0, 0, 4);
 
 -- --------------------------------------------------------
 
@@ -58,6 +59,7 @@ CREATE TABLE `patienten` (
   `id` int(11) NOT NULL,
   `vorname` varchar(20) NOT NULL,
   `nachname` varchar(30) NOT NULL,
+  `geburtsdatum` date NOT NULL DEFAULT '1990-01-01',
   `beginn` date NOT NULL,
   `ende` date NOT NULL,
   `geschlecht` tinyint(4) NOT NULL DEFAULT '1',
@@ -69,10 +71,11 @@ CREATE TABLE `patienten` (
 -- Dumping data for table `patienten`
 --
 
-INSERT INTO `patienten` (`id`, `vorname`, `nachname`, `beginn`, `ende`, `geschlecht`, `vorgeschichte`, `arztkontakt`) VALUES
-(1, 'Markus', 'Mustermann', '2022-07-01', '2023-01-31', 1, 'Dies ist noch eine beispielhafte Krankenvorgeschichte. \n\nBla Bla Bla\n\nGeaendert \n\n\nnochmal geaendert', 'Dr. Helfrich\nTelefon 01234-5456788'),
-(2, 'Maria', 'Musterfrau', '2022-06-01', '2022-12-31', 2, 'SoSoSo', ''),
-(3, 'Jo', 'Mustermensch', '2022-07-15', '2022-07-31', 3, '', '');
+INSERT INTO `patienten` (`id`, `vorname`, `nachname`, `geburtsdatum`, `beginn`, `ende`, `geschlecht`, `vorgeschichte`, `arztkontakt`) VALUES
+(1, 'Markus', 'Mustermann', '1991-01-01', '2022-07-01', '2023-01-31', 1, 'folgt', 'Dr. Hilfreich\nTelefon 01234-5456788\nemail praxis@doktor-hilfreich.kardiologe.de'),
+(2, 'Maria', 'Musterfrau', '1982-02-02', '2022-06-01', '2022-12-31', 2, 'folgt', 'Dr. Anton Herzlich\nPraxis 0987-6544321\nin NotfÃ¤llen 0155-19283746\n'),
+(3, 'Jo', 'Mustermensch', '2003-03-03', '2022-07-15', '2022-07-31', 3, 'folgt', 'PD Dr. A. von Herz\nTelefon 08474-314768'),
+(5, 'Ungueltig', 'Invalid', '1990-01-01', '2022-09-01', '2022-09-08', 1, '', '');
 
 -- --------------------------------------------------------
 
@@ -99,11 +102,12 @@ CREATE TABLE `tagebuch_eintraege` (
 --
 
 INSERT INTO `tagebuch_eintraege` (`id`, `patienten_id`, `datum`, `fieber`, `fieber_temperatur`, `kopfschmerzen`, `abgeschlagenheit`, `appetitlosigkeit`, `nachtschweiss`, `muskel_gelenkschmerzen`, `zuletzt_geaendert`) VALUES
-(1, 1, '2022-08-31', 0, NULL, 0, 0, 0, 0, 0, '2022-09-01'),
-(2, 1, '2022-08-23', 0, NULL, 1, 1, 0, 0, 0, '2022-08-31'),
-(3, 1, '2022-09-01', 0, NULL, 0, 0, 0, 0, 0, '2022-09-01'),
+(1, 1, '2022-08-31', 0, NULL, 1, 1, 0, 0, 0, '2022-09-03'),
+(3, 1, '2022-09-01', 1, '38.4', 1, 1, 0, 0, 1, '2022-09-04'),
 (4, 1, '2022-08-29', 0, NULL, 0, 0, 0, 0, 0, '2022-09-01'),
-(5, 1, '2022-08-30', 1, NULL, 0, 0, 0, 0, 0, '2022-09-01');
+(5, 1, '2022-08-30', 0, NULL, 0, 1, 0, 0, 0, '2022-09-03'),
+(6, 1, '2022-09-02', 1, '39.8', 0, 1, 0, 0, 1, '2022-09-05'),
+(18, 1, '2022-09-03', 1, '39.2', 0, 1, 1, 0, 1, '2022-09-04');
 
 --
 -- Indexes for dumped tables
@@ -135,13 +139,13 @@ ALTER TABLE `tagebuch_eintraege`
 -- AUTO_INCREMENT for table `patienten`
 --
 ALTER TABLE `patienten`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `tagebuch_eintraege`
 --
 ALTER TABLE `tagebuch_eintraege`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
